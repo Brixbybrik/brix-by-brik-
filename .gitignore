@@ -1,0 +1,229 @@
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const images = [
+  "/IMG_1100-1.jpg",
+  "/IMG_1115.jpg",
+  "/2013-01-14 21.25.13.jpg",
+];
+
+// Replace with your actual Stripe + Calendly links
+const bookingLinks = {
+  oneOnOne: {
+    payment: "https://buy.stripe.com/test_12345", 
+    schedule: "https://calendly.com/yourusername/1on1",
+  },
+  group: {
+    payment: "https://buy.stripe.com/test_67890",
+    schedule: "https://calendly.com/yourusername/group",
+  },
+  online: {
+    payment: "https://buy.stripe.com/test_abcde",
+    schedule: "https://calendly.com/yourusername/online",
+  },
+};
+
+export default function Home() {
+  const [current, setCurrent] = useState(0);
+  const [adminView, setAdminView] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  const [stats, setStats] = useState({ revenue: 0, sessions: 0 });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % images.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Simulate pulling data from a database (replace with Supabase/Firebase/MongoDB)
+  useEffect(() => {
+    const stored = localStorage.getItem("brix-bookings");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      setBookings(parsed);
+      const revenue = parsed.length * 50; // Example flat rate per session
+      setStats({ revenue, sessions: parsed.length });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (bookings.length > 0) {
+      localStorage.setItem("brix-bookings", JSON.stringify(bookings));
+      const revenue = bookings.length * 50;
+      setStats({ revenue, sessions: bookings.length });
+    }
+  }, [bookings]);
+
+  const prevSlide = () => {
+    setCurrent((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const nextSlide = () => {
+    setCurrent((prev) => (prev + 1) % images.length);
+  };
+
+  const handleBooking = (type) => {
+    const newBooking = { type, date: new Date().toLocaleString(), price: 50 };
+    setBookings((prev) => [...prev, newBooking]);
+
+    window.open(bookingLinks[type].payment, "_blank");
+    setTimeout(() => {
+      window.open(bookingLinks[type].schedule, "_blank");
+    }, 1000);
+  };
+
+  return (
+    <div className="w-full min-h-screen relative overflow-hidden">
+      {/* Toggle Admin Dashboard */}
+      <div className="absolute top-4 right-4 z-50">
+        <Button variant="secondary" onClick={() => setAdminView(!adminView)}>
+          {adminView ? "Back to Site" : "Admin Dashboard"}
+        </Button>
+      </div>
+
+      {adminView ? (
+        <div className="p-10 bg-gray-100 min-h-screen">
+          <h2 className="text-4xl font-bold mb-6">Admin Dashboard</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div className="p-6 bg-white rounded-2xl shadow text-center">
+              <h3 className="text-xl font-bold">Total Revenue</h3>
+              <p className="text-2xl mt-2">${stats.revenue}</p>
+            </div>
+            <div className="p-6 bg-white rounded-2xl shadow text-center">
+              <h3 className="text-xl font-bold">Total Sessions</h3>
+              <p className="text-2xl mt-2">{stats.sessions}</p>
+            </div>
+            <div className="p-6 bg-white rounded-2xl shadow text-center">
+              <h3 className="text-xl font-bold">By Type</h3>
+              <ul className="mt-2">
+                {Object.entries(
+                  bookings.reduce((acc, b) => {
+                    acc[b.type] = (acc[b.type] || 0) + 1;
+                    return acc;
+                  }, {})
+                ).map(([type, count]) => (
+                  <li key={type} className="capitalize">{type}: {count}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {bookings.length === 0 ? (
+            <p className="text-gray-600">No bookings yet.</p>
+          ) : (
+            <table className="w-full bg-white rounded-2xl shadow-lg overflow-hidden">
+              <thead>
+                <tr className="bg-gray-200 text-left">
+                  <th className="p-4">Training Type</th>
+                  <th className="p-4">Booking Date</th>
+                  <th className="p-4">Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((b, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-4 font-semibold">{b.type}</td>
+                    <td className="p-4">{b.date}</td>
+                    <td className="p-4">${b.price}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Slideshow */}
+          <div className="w-full h-screen relative">
+            <AnimatePresence>
+              <motion.img
+                key={current}
+                src={images[current]}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1 }}
+                className="w-full h-full object-cover absolute top-0 left-0"
+              />
+            </AnimatePresence>
+
+            {/* Overlay content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 text-white text-center px-6">
+              <h1 className="text-5xl md:text-7xl font-extrabold drop-shadow-lg">Brix-by-BriK</h1>
+              <p className="mt-4 text-lg md:text-2xl italic drop-shadow-md">Build Strength Brick by Brick</p>
+              <Button className="mt-6 px-6 py-3 text-lg rounded-2xl" onClick={() => {
+                const plans = document.getElementById("plans");
+                if (plans) plans.scrollIntoView({ behavior: "smooth" });
+              }}>
+                Start Training
+              </Button>
+            </div>
+
+            {/* Controls */}
+            <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 p-3 rounded-full">
+              <ChevronLeft className="text-white w-6 h-6" />
+            </button>
+            <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 p-3 rounded-full">
+              <ChevronRight className="text-white w-6 h-6" />
+            </button>
+
+            {/* Dots */}
+            <div className="absolute bottom-6 w-full flex justify-center gap-2">
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrent(idx)}
+                  className={`w-3 h-3 rounded-full ${current === idx ? "bg-white" : "bg-gray-500"}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Sections below hero */}
+          <section id="plans" className="py-20 bg-gray-100 text-center">
+            <h2 className="text-4xl font-bold mb-6">Training Plans</h2>
+            <p className="mb-10 max-w-2xl mx-auto">Choose from personalized 1-on-1 training, group classes, or online coaching. Pay and schedule directly through the site.</p>
+            <div className="grid md:grid-cols-3 gap-6 px-6">
+              <div className="p-6 bg-white rounded-2xl shadow-lg">
+                <h3 className="text-2xl font-bold mb-2">1-on-1 Coaching</h3>
+                <p className="mb-4">Personalized sessions tailored to your goals.</p>
+                <Button onClick={() => handleBooking("oneOnOne")}>Book Now</Button>
+              </div>
+              <div className="p-6 bg-white rounded-2xl shadow-lg">
+                <h3 className="text-2xl font-bold mb-2">Group Training</h3>
+                <p className="mb-4">Build strength and endurance with others.</p>
+                <Button onClick={() => handleBooking("group")}>Book Now</Button>
+              </div>
+              <div className="p-6 bg-white rounded-2xl shadow-lg">
+                <h3 className="text-2xl font-bold mb-2">Online Coaching</h3>
+                <p className="mb-4">Train remotely with guided programs.</p>
+                <Button onClick={() => handleBooking("online")}>Book Now</Button>
+              </div>
+            </div>
+          </section>
+
+          <section id="blog" className="py-20 bg-white text-center">
+            <h2 className="text-4xl font-bold mb-6">Fitness Blog</h2>
+            <p className="mb-10 max-w-2xl mx-auto">Read expert tips on fitness, nutrition, and recovery. Blog posts can be monetized with ads or affiliate links.</p>
+            <div className="grid md:grid-cols-3 gap-6 px-6">
+              <div className="p-6 bg-gray-100 rounded-2xl shadow">
+                <h3 className="text-xl font-semibold mb-2">Top 5 Muscle-Building Foods</h3>
+                <p className="text-gray-600">Discover the best foods for strength and recovery.</p>
+              </div>
+              <div className="p-6 bg-gray-100 rounded-2xl shadow">
+                <h3 className="text-xl font-semibold mb-2">How to Stay Motivated</h3>
+                <p className="text-gray-600">Simple strategies to keep your fitness journey on track.</p>
+              </div>
+              <div className="p-6 bg-gray-100 rounded-2xl shadow">
+                <h3 className="text-xl font-semibold mb-2">Best Recovery Practices</h3>
+                <p className="text-gray-600">Learn how to recover faster and avoid injuries.</p>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
